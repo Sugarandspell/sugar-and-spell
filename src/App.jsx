@@ -1,12 +1,14 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ShoppingCart, Sparkles, Wand2, Mail, Trash2, Star } from "lucide-react";
+import { loadStripe } from "@stripe/stripe-js";
+
+const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+console.log("Mein Stripe Key:", stripePublicKey);
 
 // --- Helper: currency
 const fmt = (n) =>
-  new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(
-    n
-  );
+  new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(n);
 
 // --- Kategorien
 const CATEGORIES = [
@@ -15,7 +17,7 @@ const CATEGORIES = [
   { id: "readings", label: "Kartenlegungen", icon: <Wand2 className="w-4 h-4" /> },
 ];
 
-// --- Produkte
+// --- Produkte (Basisdaten – Preis wird gleich live überschrieben)
 const PRODUCTS = [
   {
     id: "liebeslegung-5",
@@ -136,20 +138,34 @@ const PRODUCTS = [
   },
 ];
 
-// --- Fallback für bunte Hintergründe
-function GradientImage({ color }) {
-  return (
-    <div
-      className={`w-full h-40 rounded-xl bg-gradient-to-br ${color} shadow-inner`}
-    />
-  );
-}
-
 export default function ShopStarter() {
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState("all");
   const [cart, setCart] = useState({});
   const [note, setNote] = useState("");
+
+  // --- Preise live aus Stripe laden
+  const [priceMap, setPriceMap] = useState({});
+  const [loadingPrices, setLoadingPrices] = useState(true);
+
+  useEffect(() => {
+    async function loadPrices() {
+      try {
+        const res = await fetch("/api/get-prices");
+        const data = await res.json();
+        if (data?.prices) setPriceMap(data.prices);
+      } catch (e) {
+        console.error("Preise laden fehlgeschlagen:", e);
+      } finally {
+        setLoadingPrices(false);
+      }
+    }
+    loadPrices();
+  }, []);
+
+  // Falls Stripepreis vorhanden, nutze ihn; sonst Fallback aus PRODUCTS
+  const unitPrice = (product) =>
+    typeof priceMap[product.id] === "number" ? priceMap[product.id] : product.price;
 
   const filtered = useMemo(() => {
     return PRODUCTS.filter(
@@ -163,10 +179,12 @@ export default function ShopStarter() {
     return Object.entries(cart)
       .map(([id, qty]) => {
         const p = PRODUCTS.find((x) => x.id === id);
-        return { ...p, qty, sum: (p?.price || 0) * qty };
+        if (!p) return null;
+        const price = unitPrice(p);
+        return { ...p, price, qty, sum: price * qty };
       })
       .filter(Boolean);
-  }, [cart]);
+  }, [cart, priceMap]);
 
   const total = items.reduce((a, b) => a + b.sum, 0);
 
@@ -215,9 +233,7 @@ export default function ShopStarter() {
           >
             <span className="inline-flex h-8 w-8 rounded-xl bg-gradient-to-br from-pink-300 via-rose-300 to-amber-200 shadow" />
             <h1 className="font-semibold tracking-tight">Sugar & Spell</h1>
-            <span className="text-stone-500 text-sm">
-              Magie in Licht und Worten
-            </span>
+            <span className="text-stone-500 text-sm">Magie in Licht und Worten</span>
           </motion.div>
           <div className="ml-auto flex items-center gap-2">
             <input
@@ -233,11 +249,7 @@ export default function ShopStarter() {
       <main className="max-w-6xl mx-auto px-4">
         {/* Kategorien */}
         <div className="flex flex-wrap gap-2 my-4">
-          <CategoryPill
-            active={cat === "all"}
-            onClick={() => setCat("all")}
-            label="Alles"
-          />
+          <CategoryPill active={cat === "all"} onClick={() => setCat("all")} label="Alles" />
           {CATEGORIES.map((c) => (
             <CategoryPill
               key={c.id}
@@ -249,33 +261,32 @@ export default function ShopStarter() {
           ))}
         </div>
 
+        {/* Hinweis, bis Stripe-Preise geladen sind */}
+        {loadingPrices && (
+          <div className="mb-3 text-sm text-stone-500">Lade aktuelle Preise … ✨</div>
+        )}
+
         {/* Grid */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-28">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-28">
           {filtered.map((p, idx) => (
             <motion.article
               key={p.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.03 }}
-              className="rounded-2xl bg-white/90 shadow-sm border border-stone-200 overflow-hidden"
+              className="rounded-2xl bg-white/90 shadow-sm border border-stone-200 overflow-hidden flex flex-col"
             >
-              <div className="p-3">
-                <div className="relative">
-                  {p.image ? (
-                    <img
-                      src={p.image}
-                      alt={p.name}
-                      className="w-full h-40 rounded-xl object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <GradientImage color={p.color} />
-                  )}
-                </div>
-                <h3 className="mt-3 font-semibold leading-tight">{p.name}</h3>
-                <p className="mt-1 text-sm text-stone-600">{p.description}</p>
+              <img
+                src={p.image}
+                alt={p.name}
+                className="w-full h-40 object-cover"
+                loading="lazy"
+              />
+              <div className="p-4 flex flex-col flex-grow">
+                <h3 className="font-semibold leading-tight">{p.name}</h3>
+                <p className="mt-1 text-sm text-stone-600 flex-grow">{p.description}</p>
                 <div className="mt-3 flex items-center justify-between">
-                  <span className="font-semibold">{fmt(p.price)}</span>
+                  <span className="font-semibold">{fmt(unitPrice(p))}</span>
                   <button
                     onClick={() => add(p.id)}
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-stone-900 text-white text-sm hover:bg-stone-700 active:scale-[.98]"
@@ -297,23 +308,17 @@ export default function ShopStarter() {
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-4 h-4" />
               <span className="font-medium">Warenkorb</span>
-              <span className="text-sm text-stone-500">
-                {items.length} Positionen
-              </span>
+              <span className="text-sm text-stone-500">{items.length} Positionen</span>
             </div>
             <div className="sm:ml-auto flex flex-wrap gap-2 items-center">
               <span className="font-semibold">Summe: {fmt(total)}</span>
               <a
                 href={mailtoHref}
                 className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-white ${
-                  total > 0
-                    ? "bg-pink-600 hover:bg-pink-700"
-                    : "bg-stone-300"
+                  total > 0 ? "bg-pink-600 hover:bg-pink-700" : "bg-stone-300"
                 }`}
                 onClick={(e) => {
-                  if (total === 0) {
-                    e.preventDefault();
-                  }
+                  if (total === 0) e.preventDefault();
                 }}
               >
                 <Mail className="w-4 h-4" />
@@ -327,50 +332,34 @@ export default function ShopStarter() {
               </button>
             </div>
           </div>
+
           {items.length > 0 && (
             <div className="px-3 pb-3">
               {items.map((it) => (
-                <div
-                  key={it.id}
-                  className="py-2 flex items-center gap-3 border-b border-stone-100"
-                >
+                <div key={it.id} className="py-2 flex items-center gap-3 border-b border-stone-100">
                   <div className="h-10 w-10 rounded-lg overflow-hidden">
                     {it.image ? (
-                      <img
-                        src={it.image}
-                        alt={it.name}
-                        className="h-full w-full object-cover"
-                      />
+                      <img src={it.image} alt={it.name} className="h-full w-full object-cover" />
                     ) : (
-                      <div
-                        className={`h-full w-full rounded-lg bg-gradient-to-br ${it.color}`}
-                      />
+                      <div className="h-full w-full rounded-lg bg-gradient-to-br from-pink-200 to-amber-200" />
                     )}
                   </div>
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-medium">
-                      {it.name}
-                    </div>
-                    <div className="text-xs text-stone-500">
-                      {fmt(it.price)} pro Stück
-                    </div>
+                    <div className="truncate text-sm font-medium">{it.name}</div>
+                    <div className="text-xs text-stone-500">{fmt(it.price)} pro Stück</div>
                   </div>
                   <div className="ml-auto flex items-center gap-2">
                     <QtyBtn onClick={() => sub(it.id)}>-</QtyBtn>
                     <span className="w-6 text-center text-sm">{it.qty}</span>
                     <QtyBtn onClick={() => add(it.id)}>+</QtyBtn>
-                    <span className="w-20 text-right text-sm font-medium">
-                      {fmt(it.sum)}
-                    </span>
-                    <button
-                      onClick={() => remove(it.id)}
-                      className="p-2 rounded-lg hover:bg-stone-100"
-                    >
+                    <span className="w-20 text-right text-sm font-medium">{fmt(it.sum)}</span>
+                    <button onClick={() => remove(it.id)} className="p-2 rounded-lg hover:bg-stone-100">
                       <Trash2 className="w-4 h-4 text-stone-500" />
                     </button>
                   </div>
                 </div>
               ))}
+
               <div className="mt-2">
                 <textarea
                   value={note}
@@ -392,9 +381,7 @@ function CategoryPill({ active, onClick, label, icon }) {
     <button
       onClick={onClick}
       className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm border ${
-        active
-          ? "bg-stone-900 text-white border-stone-900"
-          : "bg-white border-stone-200 hover:bg-stone-50"
+        active ? "bg-stone-900 text-white border-stone-900" : "bg-white border-stone-200 hover:bg-stone-50"
       }`}
     >
       {icon}
@@ -405,10 +392,7 @@ function CategoryPill({ active, onClick, label, icon }) {
 
 function QtyBtn({ children, onClick }) {
   return (
-    <button
-      onClick={onClick}
-      className="h-8 w-8 rounded-lg bg-stone-100 hover:bg-stone-200"
-    >
+    <button onClick={onClick} className="h-8 w-8 rounded-lg bg-stone-100 hover:bg-stone-200">
       {children}
     </button>
   );
