@@ -1,7 +1,8 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ShoppingCart, Sparkles, Wand2, Mail, Trash2, Star } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
+import "./index.css";
 
 const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 console.log("Mein Stripe Key:", stripePublicKey);
@@ -17,43 +18,79 @@ const CATEGORIES = [
   { id: "readings", label: "Kartenlegungen", icon: <Wand2 className="w-4 h-4" /> },
 ];
 
-// --- Produkte (Basisdaten – Preis wird gleich live überschrieben)
+// --- Produkte (Preise exakt nach deiner Stripe-Liste)
 const PRODUCTS = [
   {
-    id: "liebeslegung-5",
+    id: "warum-kein-kontakt",
     category: "readings",
-    name: "Ausführliche Liebeslegung – 5 Fragen",
-    price: 39.0,
-    image: "/images/Liebeslegung.png",
+    name: "Wieso meldet er sich nicht?",
+    price: 15.0,
+    image: "/images/wiesomeldetersichnicht.png",
     description:
-      "Eine liebevolle Deutung deiner Herzensfragen. Ob Beziehung, Affäre oder Single – du bekommst klare Antworten zu bis zu 5 Fragen rund um Liebe und Gefühle.",
+      "Bei Funkstille und Rückzug: Die Karten zeigen, was wirklich dahintersteckt und ob sich Hoffnungen lohnen oder es Zeit ist, loszulassen.",
   },
   {
-    id: "drei-monate",
+    id: "seelenimpuls",
     category: "readings",
-    name: "3-Monats-Legung – Dein Blick in die nahe Zukunft",
-    price: 29.0,
-    image: "/images/DreiMonateslegung.png",
+    name: "Seelenimpuls – „Was hilft dir jetzt zu heilen?“",
+    price: 14.0,
+    image: "/images/Seelenimpuls.png",
     description:
-      "Ein Ausblick auf die nächsten Wochen und Monate. Die Karten zeigen dir, welche Energien wirken, welche Chancen sich zeigen und worauf du achten darfst.",
+      "Eine sanfte Botschaft, die dir zeigt, was deiner Seele gerade guttut und wie du deinen Heilungsweg liebevoll unterstützen kannst.",
   },
   {
-    id: "fragen-1-3",
+    id: "entscheidungshilfe",
     category: "readings",
-    name: "1–3 Fragen – Deine klare Antwort",
-    price: 19.0,
-    image: "/images/1-3fragen.png",
+    name: "Entscheidungshilfe – Finde Klarheit",
+    price: 15.0,
+    image: "/images/Entscheidungshilfe.png",
     description:
-      "Stelle bis zu 3 persönliche Fragen und erhalte schnelle, klare Impulse zu Liebe, Beruf, Finanzen oder einem anderen Thema, das dir am Herzen liegt.",
+      "Wenn du zwischen zwei Wegen stehst: Diese Kartenlegung zeigt dir Chancen, Stolpersteine und einen klaren Impuls für deine Entscheidung.",
   },
   {
-    id: "liebeslegung-singles",
+    id: "monatsbotschaft",
     category: "readings",
-    name: "Liebeslegung für Singles",
-    price: 34.0,
-    image: "/images/liebelegungSingles.png",
+    name: "Deine Monatsbotschaft",
+    price: 15.0,
+    image: "/images/DeinNachstermonat.png",
     description:
-      "Dein Weg in die Liebe: Chancen, Blockaden und Hinweise, die dir helfen, dich zu öffnen und neue Liebe in dein Leben einzuladen.",
+      "Jeder Monat bringt neue Chancen. Die Karten zeigen dir Impulse und Hinweise, worauf du dich einstellen darfst.",
+  },
+  {
+    id: "gedanken-gefuehle",
+    category: "readings",
+    name: "Was denkt er/sie über dich?",
+    price: 17.0,
+    image: "/images/Wasdenkter.png",
+    description:
+      "Finde heraus, was er oder sie wirklich über dich denkt und fühlt. Eine ehrliche Kartenlegung, die dir hilft, Klarheit zu gewinnen.",
+  },
+  {
+    id: "beruf-finanzen",
+    category: "readings",
+    name: "Beruf & Finanzen – Klarheit für deine Zukunft",
+    price: 15.0,
+    image: "/images/Beruf&Finanzen.png",
+    description:
+      "Ein klarer Blick auf deine Karriere und finanzielle Entwicklung. Die Karten zeigen Chancen, Risiken und wie du deine Ziele erreichen kannst.",
+  },
+  {
+    id: "mini-botschaft",
+    category: "readings",
+    name: "Tarot Mini-Botschaft – 3 Worte & 1 Satz",
+    price: 3.5,
+    image: "/images/Tarotminibotschaft.png",
+    description:
+      "Kurze, klare Inspiration: 3 Worte und 1 Satz aus den Karten, die dir zeigen, was gerade wirklich wichtig ist.",
+  },
+  {
+    id: "jahreslegung-12m",
+    category: "readings",
+    name: "Jahreslegung – Deine nächsten 12 Monate",
+    price: 42.0,
+    image: "/images/Jahreslegung.png",
+    description:
+      "Eine detaillierte Vorschau auf 12 Monate. Du erfährst, welche Energien dich begleiten und worauf du achten darfst – liebevoll und klar geschrieben.",
   },
   {
     id: "botschaft-universum",
@@ -65,107 +102,45 @@ const PRODUCTS = [
       "Wenn du keine konkrete Frage hast: Die Karten geben dir eine präzise, liebevolle Botschaft zu deiner aktuellen Situation und deinen Energien.",
   },
   {
-    id: "jahreslegung-12m",
+    id: "liebelegung-singles",
     category: "readings",
-    name: "Jahreslegung – Deine nächsten 12 Monate",
-    price: 49.0,
-    image: "/images/Jahreslegung.png",
-    description:
-      "Eine detaillierte Vorschau auf 12 Monate. Du erfährst, welche Energien dich begleiten und worauf du achten darfst – liebevoll und klar geschrieben.",
-  },
-  {
-    id: "mini-botschaft",
-    category: "readings",
-    name: "Tarot Mini-Botschaft – 3 Worte & 1 Satz",
-    price: 14.0,
-    image: "/images/Tarotminibotschaft.png",
-    description:
-      "Kurze, klare Inspiration: 3 Worte und 1 Satz aus den Karten, die dir zeigen, was gerade wirklich wichtig ist.",
-  },
-  {
-    id: "beruf-finanzen",
-    category: "readings",
-    name: "Beruf & Finanzen – Klarheit für deine Zukunft",
+    name: "Liebeslegung für Singles",
     price: 34.0,
-    image: "/images/Beruf&Finanzen.png",
+    image: "/images/liebelegungSingles.png",
     description:
-      "Ein klarer Blick auf deine Karriere und finanzielle Entwicklung. Die Karten zeigen Chancen, Risiken und wie du deine Ziele erreichen kannst.",
+      "Dein Weg in die Liebe: Chancen, Blockaden und Hinweise, die dir helfen, dich zu öffnen und neue Liebe in dein Leben einzuladen.",
   },
   {
-    id: "gedanken-gefuehle",
+    id: "drei-monate",
     category: "readings",
-    name: "Was denkt er/sie über dich?",
+    name: "3-Monats-Legung – Dein Blick in die nahe Zukunft",
     price: 29.0,
-    image: "/images/Wasdenkter.png",
+    image: "/images/DreiMonateslegung.png",
     description:
-      "Finde heraus, was er oder sie wirklich über dich denkt und fühlt. Eine ehrliche Kartenlegung, die dir hilft, Klarheit zu gewinnen.",
+      "Ein Ausblick auf die nächsten Wochen und Monate. Die Karten zeigen dir, welche Energien wirken, welche Chancen sich zeigen und worauf du achten darfst.",
   },
   {
-    id: "monatsbotschaft",
+    id: "liebeslegung-5",
     category: "readings",
-    name: "Deine Monatsbotschaft",
-    price: 24.0,
-    image: "/images/DeinNachstermonat.png",
+    name: "Ausführliche Tiefe Liebeslegung",
+    price: 33.0,
+    image: "/images/Liebeslegung.png",
     description:
-      "Jeder Monat bringt neue Chancen. Die Karten zeigen dir Impulse und Hinweise, worauf du dich einstellen darfst.",
-  },
-  {
-    id: "entscheidungshilfe",
-    category: "readings",
-    name: "Entscheidungshilfe – Finde Klarheit",
-    price: 29.0,
-    image: "/images/Entscheidungshilfe.png",
-    description:
-      "Wenn du zwischen zwei Wegen stehst: Diese Kartenlegung zeigt dir Chancen, Stolpersteine und einen klaren Impuls für deine Entscheidung.",
-  },
-  {
-    id: "seelenimpuls",
-    category: "readings",
-    name: "Seelenimpuls – Heilung & innere Stärke",
-    price: 24.0,
-    image: "/images/Seelenimpuls.png",
-    description:
-      "Eine sanfte Botschaft, die dir zeigt, was deiner Seele gerade guttut und wie du deinen Heilungsweg liebevoll unterstützen kannst.",
-  },
-  {
-    id: "warum-kein-kontakt",
-    category: "readings",
-    name: "Wieso meldet er sich nicht?",
-    price: 29.0,
-    image: "/images/wiesomeldetersichnicht.png",
-    description:
-      "Bei Funkstille und Rückzug: Die Karten zeigen, was wirklich dahintersteckt und ob sich Hoffnungen lohnen oder es Zeit ist, loszulassen.",
+      "Eine ausführliche Liebeslegung mit klaren und liebevollen Hinweisen für deinen Weg in der Liebe.",
   },
 ];
+
+function GradientImage({ color }) {
+  return (
+    <div className={`w-full h-40 rounded-xl bg-gradient-to-br ${color} shadow-inner`} />
+  );
+}
 
 export default function ShopStarter() {
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState("all");
   const [cart, setCart] = useState({});
   const [note, setNote] = useState("");
-
-  // --- Preise live aus Stripe laden
-  const [priceMap, setPriceMap] = useState({});
-  const [loadingPrices, setLoadingPrices] = useState(true);
-
-  useEffect(() => {
-    async function loadPrices() {
-      try {
-        const res = await fetch("/api/get-prices");
-        const data = await res.json();
-        if (data?.prices) setPriceMap(data.prices);
-      } catch (e) {
-        console.error("Preise laden fehlgeschlagen:", e);
-      } finally {
-        setLoadingPrices(false);
-      }
-    }
-    loadPrices();
-  }, []);
-
-  // Falls Stripepreis vorhanden, nutze ihn; sonst Fallback aus PRODUCTS
-  const unitPrice = (product) =>
-    typeof priceMap[product.id] === "number" ? priceMap[product.id] : product.price;
 
   const filtered = useMemo(() => {
     return PRODUCTS.filter(
@@ -179,17 +154,14 @@ export default function ShopStarter() {
     return Object.entries(cart)
       .map(([id, qty]) => {
         const p = PRODUCTS.find((x) => x.id === id);
-        if (!p) return null;
-        const price = unitPrice(p);
-        return { ...p, price, qty, sum: price * qty };
+        return { ...p, qty, sum: (p?.price || 0) * qty };
       })
       .filter(Boolean);
-  }, [cart, priceMap]);
+  }, [cart]);
 
   const total = items.reduce((a, b) => a + b.sum, 0);
 
-  const add = (id) =>
-    setCart((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+  const add = (id) => setCart((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
   const sub = (id) =>
     setCart((prev) => {
       const next = { ...prev };
@@ -217,9 +189,7 @@ export default function ShopStarter() {
       note ? "" : "",
       note ? `Hinweis: ${note}` : "",
     ].join("\n");
-    return `mailto:sugarandspell@gmail.com?subject=${subject}&body=${encodeURIComponent(
-      bodyLines
-    )}`;
+    return `mailto:sugarandspell@gmail.com?subject=${subject}&body=${encodeURIComponent(bodyLines)}`;
   }, [items, total, note]);
 
   return (
@@ -261,32 +231,33 @@ export default function ShopStarter() {
           ))}
         </div>
 
-        {/* Hinweis, bis Stripe-Preise geladen sind */}
-        {loadingPrices && (
-          <div className="mb-3 text-sm text-stone-500">Lade aktuelle Preise … ✨</div>
-        )}
-
         {/* Grid */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-28">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-28">
           {filtered.map((p, idx) => (
             <motion.article
               key={p.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.03 }}
-              className="rounded-2xl bg-white/90 shadow-sm border border-stone-200 overflow-hidden flex flex-col"
+              className="product-card rounded-2xl bg-white/90 shadow-sm border border-stone-200 overflow-hidden"
             >
-              <img
-                src={p.image}
-                alt={p.name}
-                className="w-full h-40 object-cover"
-                loading="lazy"
-              />
-              <div className="p-4 flex flex-col flex-grow">
-                <h3 className="font-semibold leading-tight">{p.name}</h3>
-                <p className="mt-1 text-sm text-stone-600 flex-grow">{p.description}</p>
+              <div className="p-3">
+                <div className="relative">
+                  {p.image ? (
+                    <img
+                      src={p.image}
+                      alt={p.name}
+                      className="product-card__img w-full rounded-xl object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <GradientImage color={p.color} />
+                  )}
+                </div>
+                <h3 className="mt-3 font-semibold leading-tight">{p.name}</h3>
+                <p className="mt-1 text-sm text-stone-600">{p.description}</p>
                 <div className="mt-3 flex items-center justify-between">
-                  <span className="font-semibold">{fmt(unitPrice(p))}</span>
+                  <span className="font-semibold">{fmt(p.price)}</span>
                   <button
                     onClick={() => add(p.id)}
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-stone-900 text-white text-sm hover:bg-stone-700 active:scale-[.98]"
@@ -324,10 +295,7 @@ export default function ShopStarter() {
                 <Mail className="w-4 h-4" />
                 Anfrage senden
               </a>
-              <button
-                onClick={clear}
-                className="px-3 py-2 rounded-xl bg-stone-100 text-sm hover:bg-stone-200"
-              >
+              <button onClick={clear} className="px-3 py-2 rounded-xl bg-stone-100 text-sm hover:bg-stone-200">
                 Leeren
               </button>
             </div>
@@ -341,7 +309,7 @@ export default function ShopStarter() {
                     {it.image ? (
                       <img src={it.image} alt={it.name} className="h-full w-full object-cover" />
                     ) : (
-                      <div className="h-full w-full rounded-lg bg-gradient-to-br from-pink-200 to-amber-200" />
+                      <div className={`h-full w-full rounded-lg bg-gradient-to-br ${it.color}`} />
                     )}
                   </div>
                   <div className="min-w-0">
@@ -359,7 +327,6 @@ export default function ShopStarter() {
                   </div>
                 </div>
               ))}
-
               <div className="mt-2">
                 <textarea
                   value={note}
@@ -397,3 +364,10 @@ function QtyBtn({ children, onClick }) {
     </button>
   );
 }
+
+// Mini-Fix: erzwingt Kartenbild-Höhe (egal, was globales CSS macht)
+const style = document.createElement("style");
+style.innerHTML = `
+  .product-card__img { height: 160px; object-fit: cover; display:block; }
+`;
+document.head.appendChild(style);
